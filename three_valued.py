@@ -148,10 +148,13 @@ class ExtendedIdentityDagWalker(IdentityDagWalker):
             cell3 = ps.Implies(self.is_F(child), self.is_F(formula))
             self.constraints.add(ps.And(cell1, cell2, cell3))
 
-def translate(formula):
+def translate_for_validity(formula):
     constraints, subformulas_to_bools_TB, _ = encode_tables(formula)
-    # NOTE we use implication because we want to check validity
     return ps.Implies(ps.And([c for c in constraints]), subformulas_to_bools_TB[formula])
+
+def translate_for_satisfiability(formula):
+    constraints, subformulas_to_bools_TB, _ = encode_tables(formula)
+    return ps.And([c for c in constraints] + [subformulas_to_bools_TB[formula]])
 
 def encode_tables(formula):
     walker = ExtendedIdentityDagWalker()
@@ -170,7 +173,7 @@ q = ps.Symbol("q")
 ClosedAx = And(Dimp(q,p), And(Dimp(Not(q),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
 formula = Dimp(ClosedAx, Or(And(p,q),And(Not(p),Not(q))))
 
-print(ps.is_valid(translate(formula))) # valid
+print(ps.is_valid(translate_for_validity(formula))) # valid
 
 
 """
@@ -180,7 +183,7 @@ r = ps.Symbol("r")
 ClosedAx2 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
 formula2 = Dimp(ClosedAx2, Or(And(p,q),And(Not(p),Not(q))))
 
-print(ps.is_valid(translate(formula2))) # valid
+print(ps.is_valid(translate_for_validity(formula2))) # valid
 
 """
 Now p's witness set is {{r}} and q's witness set is {{s}}. So p and q are not intertwined.
@@ -189,7 +192,7 @@ s = ps.Symbol("s")
 ClosedAx3 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(s,q), Dimp(Not(s),Not(q)))))
 formula3 = Dimp(ClosedAx3, Or(And(p,q),And(Not(p),Not(q))))
 
-translation = translate(formula3)
+translation = translate_for_validity(formula3)
 print(ps.is_valid(translation)) # invalid
 # print(ps.get_model(ps.Not(translation)))
 
