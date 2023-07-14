@@ -1,4 +1,3 @@
-import json
 import itertools
 import pysmt.shortcuts as ps
 import three_valued_logic as tvl
