@@ -137,45 +137,21 @@ def encode_tables(formula):
     return walker.constraints, walker.subformulas_to_bools_TB, walker.subformulas_to_bools_FB
 
 def translate_for_validity(formula):
+    """
+    Translate a formula in three-valued logic to a formula in classical logic that is valid iff the original formula is valid.
+    """
     constraints, subformulas_to_bools_TB, _ = encode_tables(formula)
     return ps.Implies(ps.And([c for c in constraints]), subformulas_to_bools_TB[formula])
 
+def is_valid(formula):
+    return ps.is_valid(translate_for_validity(formula))
+
 def translate_for_satisfiability(formula):
+    """
+    Translate a formula in three-valued logic to a formula in classical logic that is satisfiable iff the original formula is satisfiable.
+    """
     constraints, subformulas_to_bools_TB, _ = encode_tables(formula)
     return ps.And([c for c in constraints] + [subformulas_to_bools_TB[formula]])
 
-"""
-Let's say that p and q each have a unique witness that consists of the other.
-Then, ClosedAx will be (q => p) /\ (~q => ~p) /\ (p => q) /\ (~p => ~q).
-To check whether p and q are intertwined, we need to check whether {p,q} |= ClosedAx => ((p /\ q) \/ (~p /\ ~q))
-"""
-
-# p = ps.Symbol("p")
-# q = ps.Symbol("q")
-
-# ClosedAx = And(Dimp(q,p), And(Dimp(Not(q),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
-# formula = Dimp(ClosedAx, Or(And(p,q),And(Not(p),Not(q))))
-
-# print(ps.is_valid(translate_for_validity(formula))) # valid
-
-
-# """
-# Now p and q each have a single witness that consists of r, so p and q are intertwined.
-# """
-# r = ps.Symbol("r")
-# ClosedAx2 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
-# formula2 = Dimp(ClosedAx2, Or(And(p,q),And(Not(p),Not(q))))
-
-# print(ps.is_valid(translate_for_validity(formula2))) # valid
-
-# """
-# Now p's witness set is {{r}} and q's witness set is {{s}}. So p and q are not intertwined.
-# """
-# s = ps.Symbol("s")
-# ClosedAx3 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(s,q), Dimp(Not(s),Not(q)))))
-# formula3 = Dimp(ClosedAx3, Or(And(p,q),And(Not(p),Not(q))))
-
-# translation = translate_for_validity(formula3)
-# print(ps.is_valid(translation)) # invalid
-
-# all seems good so far
+def is_sat(formula):
+    return ps.is_sat(translate_for_satisfiability(formula))

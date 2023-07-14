@@ -68,54 +68,48 @@ class StellarNetwork:
         """
         Return the closedAx formula as computed from the quorumSets of the validators.
         """        
-        return And(*list(itertools.chain.from_iterable([closed_ax_validator(validator, qset) for validator,qset in self.validators.items()])))
+        return And(*itertools.chain.from_iterable([closed_ax_validator(validator, qset) for validator,qset in self.validators.items()]))
     
     def network_intertwined(self):
         if len(self.validators) == 1:
             return tvl.Not(tvl.F)
         else:
-            closedAx = self.closed_ax()
-            return And(*[intertwined(closedAx, p, q) for [p,q] in itertools.combinations(self.validators.keys(), 2)])
+            return tvl.Dimp(self.closed_ax(), And(*[intertwined(p, q) for [p,q] in itertools.combinations(self.validators.keys(), 2)]))
         
     def check_intertwined(self, p, q):
-        translation = tvl.translate_for_validity(self.intertwined(p, q))
-        return ps.is_valid(translation)
+        return tvl.is_valid(tvl.Dimp(self.closed_ax(), intertwined(p,q)))
         
     def check_network_intertwined(self):
-        translation = tvl.translate_for_validity(self.network_intertwined())
-        return ps.is_valid(translation)
+        return tvl.is_valid(self.network_intertwined())
 
 
 def symbol(x):
     """
     Associate a symbol with a validator or a quorumSets.
-    pySMT already does memoization, so we don't need to do it ourselves.
+    Hopefully, pySMT already does memoization, so we don't need to do it ourselves.
     For quorumSets, we create symbols using their hash.
     """
     if isinstance(x, str):
-        return ps.Symbol(x)
+        return ps.Symbol("V:"+x)
     elif isinstance(x, dict):
-        return ps.Symbol(str(hash(str(x))))
+        return ps.Symbol("Q:"+str(hash(str(x))))
     else:
         raise Exception("Wrong type of {} for a symbol: {}".format(x, type(x)))
 
 def And(*args):
     assert len(args) > 0
-    if len(args) > 2:
-        return tvl.And(args[0], And(*args[1:]))
-    elif len(args) > 1:
-        return tvl.And(args[0],args[1])
-    else: 
-        return args[0]
-
+    value = args[0]
+    for f in args[1:]:
+        value = tvl.And(f, value)
+    return value
+    
 def Or(*args):
     assert len(args) > 0
-    if len(args) > 2:
-        return tvl.Or(args[0], Or(*args[1:]))
-    elif len(args) > 1:
-        return tvl.Or(args[0],args[1])
-    else: 
-        return args[0]
+    assert len(args) > 0
+    value = args[0]
+    for f in args[1:]:
+        value = tvl.Or(f, value)
+    return value
 
 def closed_ax_sym(e, threshold, validators, innerQuorumSets):
     """
@@ -145,6 +139,6 @@ def closed_ax_validator(validator, qset):
                             qset['innerQuorumSets']) \
         + list(itertools.chain.from_iterable([closed_ax_innerqset(innerQset) for innerQset in qset['innerQuorumSets']]))
 
-def intertwined(closedAx, p, q):
+def intertwined(p, q):
     assert isinstance(p, str) and isinstance(q, str)
-    return tvl.Dimp(closedAx, tvl.Or(tvl.And(symbol(p), symbol(q)),tvl.And(tvl.Not(symbol(p)),tvl.Not(symbol(q)))))
+    return tvl.Or(tvl.And(symbol(p), symbol(q)),tvl.And(tvl.Not(symbol(p)),tvl.Not(symbol(q))))
