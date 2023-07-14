@@ -150,32 +150,32 @@ Then, ClosedAx will be (q => p) /\ (~q => ~p) /\ (p => q) /\ (~p => ~q).
 To check whether p and q are intertwined, we need to check whether {p,q} |= ClosedAx => ((p /\ q) \/ (~p /\ ~q))
 """
 
-p = ps.Symbol("p")
-q = ps.Symbol("q")
+# p = ps.Symbol("p")
+# q = ps.Symbol("q")
 
-ClosedAx = And(Dimp(q,p), And(Dimp(Not(q),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
-formula = Dimp(ClosedAx, Or(And(p,q),And(Not(p),Not(q))))
+# ClosedAx = And(Dimp(q,p), And(Dimp(Not(q),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
+# formula = Dimp(ClosedAx, Or(And(p,q),And(Not(p),Not(q))))
 
-print(ps.is_valid(translate_for_validity(formula))) # valid
+# print(ps.is_valid(translate_for_validity(formula))) # valid
 
 
-"""
-Now p and q each have a single witness that consists of r, so p and q are intertwined.
-"""
-r = ps.Symbol("r")
-ClosedAx2 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
-formula2 = Dimp(ClosedAx2, Or(And(p,q),And(Not(p),Not(q))))
+# """
+# Now p and q each have a single witness that consists of r, so p and q are intertwined.
+# """
+# r = ps.Symbol("r")
+# ClosedAx2 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(p,q), Dimp(Not(p),Not(q)))))
+# formula2 = Dimp(ClosedAx2, Or(And(p,q),And(Not(p),Not(q))))
 
-print(ps.is_valid(translate_for_validity(formula2))) # valid
+# print(ps.is_valid(translate_for_validity(formula2))) # valid
 
-"""
-Now p's witness set is {{r}} and q's witness set is {{s}}. So p and q are not intertwined.
-"""
-s = ps.Symbol("s")
-ClosedAx3 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(s,q), Dimp(Not(s),Not(q)))))
-formula3 = Dimp(ClosedAx3, Or(And(p,q),And(Not(p),Not(q))))
+# """
+# Now p's witness set is {{r}} and q's witness set is {{s}}. So p and q are not intertwined.
+# """
+# s = ps.Symbol("s")
+# ClosedAx3 = And(Dimp(r,p), And(Dimp(Not(r),Not(p)), And(Dimp(s,q), Dimp(Not(s),Not(q)))))
+# formula3 = Dimp(ClosedAx3, Or(And(p,q),And(Not(p),Not(q))))
 
-translation = translate_for_validity(formula3)
-print(ps.is_valid(translation)) # invalid
+# translation = translate_for_validity(formula3)
+# print(ps.is_valid(translation)) # invalid
 
 # all seems good so far
