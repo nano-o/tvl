@@ -97,14 +97,17 @@ class StellarNetwork:
         Return the closedAx formula as computed from the quorumSets of the validators.
         """
         seen = set()
+        closed_ax_fmlas = []
     
-        def closed_ax_qset(qset):
+        def add_closed_ax_qset(qset):
             """
+            Add the closed axioms for the given qset to the list closed_ax.
+
             :param qset: a QSet
             """
             if qset in seen:
                 return
-            elems = qset.validators + qset.innerQuorumSets
+            elems = qset.validators | qset.innerQuorumSets
             witnesses = list(itertools.combinations(elems, qset.threshold))
             def witness_to_disj(witness):
                 return Or(*[symbol(e) for e in witness])
@@ -113,18 +116,19 @@ class StellarNetwork:
                 return Or(*[tvl.Not(symbol(e)) for e in witness])
             closed_ax_neg = tvl.Dimp(And(*[witness_to_disj_neg(w) for w in witnesses]), tvl.Not(symbol(qset)))
             seen.add(qset)
-            return [closed_ax_pos, closed_ax_neg] \
-                + list(itertools.chain.from_iterable([closed_ax_qset(innerQset) for innerQset in qset.innerQuorumSets]))  
+            closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
+            for innerQset in qset.innerQuorumSets:
+                add_closed_ax_qset(innerQset)
 
-        def closed_ax_validator(v):
+        def add_closed_ax_validator(v):
             assert isinstance(v, str)
             qset = self.validators[v]
-            # return (qset => v /\ ~qset => ~v):
-            return tvl.And(
-                tvl.Dimp(symbol(qset), symbol(v)),
-                tvl.Dimp(tvl.Not(symbol(qset)), tvl.Not(symbol(v))))
+            add_closed_ax_qset(qset)
+            closed_ax_fmlas.append(tvl.Equiv(symbol(qset), symbol(v)))
         
-        return And(*[closed_ax_validator(v) for v in self.validators.keys()])
+        for v in self.validators:
+            add_closed_ax_validator(v)
+        return And(*closed_ax_fmlas)
 
     def network_intertwined(self):
         if len(self.validators) == 1:

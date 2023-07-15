@@ -11,6 +11,8 @@ OR = ps.Symbol("or", ps.FunctionType(ps.BOOL, [ps.BOOL, ps.BOOL]))
 NOT = ps.Symbol("not", ps.FunctionType(ps.BOOL, [ps.BOOL]))
 # NOTE diamond or box have to be primitives as (I think) there's no way to express them in terms of and, or, and not
 DIAMOND = ps.Symbol("diamond", ps.FunctionType(ps.BOOL, [ps.BOOL]))
+# NOTE it seems that equiv has to be a primitive too
+EQUIV = ps.Symbol("equiv", ps.FunctionType(ps.BOOL, [ps.BOOL, ps.BOOL]))
 
 # The constant F
 F = ps.Symbol("F", ps.BOOL)
@@ -23,6 +25,9 @@ def Or(x,y):
 
 def Not(x):
   return ps.Function(NOT, [x])
+
+def Equiv(x,y):
+  return ps.Function(EQUIV, [x, y])
 
 # C for curly
 def Cimp(x,y):
@@ -115,6 +120,20 @@ class ExtendedIdentityDagWalker(IdentityDagWalker):
             cell31 = ps.Implies(ps.And(self.is_F(left), self.is_T(right)), self.is_T(formula))
             cell32 = ps.Implies(ps.And(self.is_F(left), self.is_B(right)), self.is_B(formula))
             cell33 = ps.Implies(ps.And(self.is_F(left), self.is_F(right)), self.is_F(formula))
+            self.constraints.add(ps.And(cell11, cell12, cell13, cell21, cell22, cell23, cell31, cell32, cell33))
+        elif connective == EQUIV:
+            assert(len(formula.args()) == 2)
+            left = formula.args()[0]
+            right = formula.args()[1]
+            cell11 = ps.Implies(ps.And(self.is_T(left), self.is_T(right)), self.is_T(formula))
+            cell12 = ps.Implies(ps.And(self.is_T(left), self.is_B(right)), self.is_F(formula))
+            cell13 = ps.Implies(ps.And(self.is_T(left), self.is_F(right)), self.is_F(formula))
+            cell21 = ps.Implies(ps.And(self.is_B(left), self.is_T(right)), self.is_F(formula))
+            cell22 = ps.Implies(ps.And(self.is_B(left), self.is_B(right)), self.is_T(formula))
+            cell23 = ps.Implies(ps.And(self.is_B(left), self.is_F(right)), self.is_F(formula))
+            cell31 = ps.Implies(ps.And(self.is_F(left), self.is_T(right)), self.is_F(formula))
+            cell32 = ps.Implies(ps.And(self.is_F(left), self.is_B(right)), self.is_F(formula))
+            cell33 = ps.Implies(ps.And(self.is_F(left), self.is_F(right)), self.is_T(formula))
             self.constraints.add(ps.And(cell11, cell12, cell13, cell21, cell22, cell23, cell31, cell32, cell33))
         elif connective == NOT:
             assert(len(formula.args()) == 1)

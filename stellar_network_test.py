@@ -21,6 +21,10 @@ class TestStellarNetwork(unittest.TestCase):
         network = stellar_network.StellarNetwork(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}}])
+        formula = network.network_intertwined()
+        # write the formula to the file log.txt:
+        with open('log.txt', 'w') as f:
+            f.write(formula.serialize())
         self.assertTrue(network.check_network_intertwined())
 
     def test_3(self):

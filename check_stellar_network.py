@@ -28,10 +28,10 @@ with open("validators.json", "r") as infile:
     validators = json.load(infile)
 
 stellar_network = sn.StellarNetwork(validators)
-print("There are {} validators".format(len(stellar_network.validators)))
-print("There are {} different qsets:".format(stellar_network.num_qsets()))
-for qset in stellar_network.qsets:
-    print("{}\n".format(qset))
+# print("There are {} validators".format(len(stellar_network.validators)))
+# print("There are {} different qsets:".format(stellar_network.num_qsets()))
+# for qset in stellar_network.qsets:
+#     print("{}\n".format(qset))
 
-# print("Is the Stellar network interwined? {}"
-#       .format(stellar_network.check_network_intertwined()))
+print("Is the Stellar network interwined? {}"
+      .format(stellar_network.check_network_intertwined()))
