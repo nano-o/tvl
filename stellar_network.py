@@ -1,11 +1,30 @@
 import itertools
 import pysmt.shortcuts as ps
 import three_valued_logic as tvl
+import json
+from dataclasses import dataclass
 
 """
 This file contains functions for checking whether a given network of validators (consisting of public keys and their quorumSets) is intertwined by reduction to SAT.
-
 """
+
+@dataclass(frozen=True)
+class QSet:
+    """
+    A quorumSet. Can be used as a key in a dictionary and as an element in a set.
+    """
+    threshold: int
+    validators: frozenset[str]
+    innerQuorumSets: frozenset
+
+    @staticmethod
+    def from_json(json_qset):
+        """
+        :param json_qset: a dictionary representing the quorumSet
+        """
+        return QSet(json_qset['threshold'],
+                    frozenset(json_qset['validators']),
+                    frozenset([QSet.from_json(qset) for qset in json_qset['innerQuorumSets']]))
 
 class StellarNetwork:
     """
@@ -30,38 +49,36 @@ class StellarNetwork:
                     'innerQuorumSets' : [...]},
                     ...]}}
         """
-        self.validators = dict([(validator['publicKey'], validator['quorumSet']) for validator in validators])
+        self.validators = dict(
+            [(validator['publicKey'], QSet.from_json(validator['quorumSet'])) for validator in validators])
         self.sanity_check()
-
 
     def sanity_check(self):
         """
         Perform a few sanity checks
         """
-        def check_qset(qset):
-            elems = qset['validators'] + qset['innerQuorumSets'] 
-            if not elems:
+        def check_qset(qset: QSet):
+            # if both validators and innerQuorumSets are empty, then raise an error:
+            if not qset.validators and not qset.innerQuorumSets:
                 raise ValueError("Empty quorumSet")
-            if qset['threshold'] > len(elems):
-                raise ValueError("Threshold {} greater than number of elements in the qset ({})".format(qset['threshold'], len(elems)))
-            if qset['threshold'] < 1:
-                raise ValueError("Threshold {} less than 1".format(qset['threshold']))
-            for key, value in qset.items():
-                if key == 'validators':
-                    for pk in value:
-                        if pk not in self.validators:
-                            raise ValueError("Unknown validator: {}".format(pk))
-                elif key == 'innerQuorumSets':
-                    for innerQuorumSet in value:
-                        check_qset(innerQuorumSet)
-
+            elems = qset.validators | qset.innerQuorumSets
+            if qset.threshold > len(elems):
+                raise ValueError(
+                    "Threshold {} greater than number of elements in the qset ({})"
+                    .format(qset.threshold, len(elems)))
+            if qset.threshold < 1:
+                raise ValueError("Threshold {} less than 1".format(qset.threshold))
+            for pk in qset.validators:
+                    if pk not in self.validators:
+                        raise ValueError("Unknown validator: {}".format(pk))
+            for innerQuorumSet in qset.innerQuorumSets:
+                    check_qset(innerQuorumSet)
 
         for pk,qset in self.validators.items():
             try:
                 check_qset(qset)
             except ValueError as e:
                 raise ValueError("Error in validator {}: {}".format(pk, e))
-
 
     def closed_ax(self):
         """
@@ -81,6 +98,13 @@ class StellarNetwork:
     def check_network_intertwined(self):
         return tvl.is_valid(self.network_intertwined())
 
+def hash_qset(qset):
+    """
+    Hash a quorumSet
+    """
+    assert isinstance(qset, dict)
+    # Hash the qset by hashing its json representation. TODO Is that how it's done?
+    return hash(json.dumps(qset, sort_keys=True))
 
 def symbol(x):
     """
@@ -110,9 +134,11 @@ def Or(*args):
         value = tvl.Or(f, value)
     return value
 
-def closed_ax_sym(e, threshold, validators, innerQuorumSets):
+def closed_ax_elem(e, threshold, validators, innerQuorumSets):
     """
     :param e: a public key or an innerQuorumSet
+
+    TODO: we don't need to redo the work if we've already seen the same threshold, validators, and innerQuorumSets combination
     """
     elems = validators + innerQuorumSets
     witnesses = list(itertools.combinations(elems, threshold))
@@ -124,19 +150,22 @@ def closed_ax_sym(e, threshold, validators, innerQuorumSets):
     closed_ax_neg = tvl.Dimp(And(*[witness_to_disj_neg(witness) for witness in witnesses]), tvl.Not(symbol(e)))
     return [closed_ax_pos, closed_ax_neg]
 
-def closed_ax_innerqset(qset):
+def closed_ax_qset(qset):
+    """
+    Create a variable for the qset and the closedAx formula for the qset.
+    """
     assert isinstance(qset, dict)
-    return closed_ax_sym(qset, qset['threshold'], qset['validators'], qset['innerQuorumSets']) \
-        + list(itertools.chain.from_iterable([closed_ax_innerqset(innerQset) for innerQset in qset['innerQuorumSets']]))
+    return closed_ax_elem(qset, qset['threshold'], qset['validators'], qset['innerQuorumSets']) \
+        + list(itertools.chain.from_iterable([closed_ax_qset(innerQset) for innerQset in qset['innerQuorumSets']]))
 
 def closed_ax_validator(validator, qset):
     assert isinstance(validator, str)
     assert isinstance(qset, dict)
-    return closed_ax_sym(validator,
+    return closed_ax_elem(validator,
                             qset['threshold'],
                             qset['validators'],
                             qset['innerQuorumSets']) \
-        + list(itertools.chain.from_iterable([closed_ax_innerqset(innerQset) for innerQset in qset['innerQuorumSets']]))
+        + list(itertools.chain.from_iterable([closed_ax_qset(innerQset) for innerQset in qset['innerQuorumSets']]))
 
 def intertwined(p, q):
     assert isinstance(p, str) and isinstance(q, str)

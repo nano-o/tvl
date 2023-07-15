@@ -1,6 +1,16 @@
 import stellar_network
 import unittest
 
+class QSetTest(unittest.TestCase):
+    def test_1(self):
+        qset = stellar_network.QSet.from_json(
+            {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []})
+    def test_2(self):
+        qset = stellar_network.QSet.from_json(
+            {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' :
+                [{'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []},
+                 {'threshold' : 1, 'validators' : ['C','D'], 'innerQuorumSets' : []}]})
+
 class TestStellarNetwork(unittest.TestCase):
     def test_1(self):
         network = stellar_network.StellarNetwork(
