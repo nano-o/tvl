@@ -9,3 +9,5 @@ docker pull giulianolosa/tvl:latest
 docker run giulianolosa/tvl:latest
 ```
 
+At this point, this is just a toy.
+In practice, use [`fbas_analyzer`](https://github.com/trudi-group/fbas_analyzer) (which powers [stellarbeat](https://stellarbeat.io)).
