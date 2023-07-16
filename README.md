@@ -1,0 +1,11 @@
+This repository contains Python code to check whether the Stellar network is intertwined by reduction to SAT.
+
+Technically, we first express the intertwined property as a formula in a three-valued logic, and then we check the validity of that formula by reduction to SAT.
+Explaining this is left as future work.
+
+To try it:
+```
+docker pull giulianolosa/tvl:latest
+docker run giulianolosa/tvl:latest
+```
+
