@@ -48,6 +48,7 @@ if len(sys.argv) > 1:
         print("Usage: python3 check_stellar_network.py [--update]")
         sys.exit(1)
 else:
+    print("Loading data from validators.json. Use --update to get fresh data from stellarbeat.")
     validators = get_validators()
 
 stellar_network = sn.StellarNetwork(validators)
