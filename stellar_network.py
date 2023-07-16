@@ -104,6 +104,7 @@ class StellarNetwork:
             if isinstance(validator_or_qset, QSet) and qset in lhs_cache:
                 pass
             elif isinstance(validator_or_qset, str) and qset in lhs_cache:
+                assert len(lhs_cache[qset]) == 2
                 closed_ax_pos = tvl.Dimp(lhs_cache[qset][0], symbol(validator_or_qset))
                 closed_ax_neg = tvl.Dimp(lhs_cache[qset][1], tvl.Not(symbol(validator_or_qset)))
                 closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])

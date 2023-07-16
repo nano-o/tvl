@@ -4,30 +4,34 @@ import requests
 import json
 import stellar_network as sn
 
-def write_stellarbeat_config(url):
+def get_config_from_stellarbeat():
     """
-    Get data from stellarbeat and write network config (nodes and their qsets) to files nodes.json and validators.json
+    Get data from stellarbeat, filter it, and return it as a list of dictionaries
     """
     url = "https://api.stellarbeat.io/v1/node"
     response = requests.get(url)
     if response.status_code == 200:
-        data = response.json() 
-        with open("nodes.json", "w") as outfile:
-            json.dump(data, outfile)
+        data = response.json()
         filtered_data = [{'publicKey': node['publicKey'], 'quorumSet': node['quorumSet']}
             for node in data if node['isValidator'] == True]
-        print("There are {} validators".format
-            (len(filtered_data)))
-        with open("validators.json", "w") as outfile:
-            json.dump(filtered_data, outfile)
+        return filtered_data
     else:
         print("Error: Could not retrieve data from URL")
 
-# load data from validators.json
-with open("validators.json", "r") as infile:
-    validators = json.load(infile)
-
-stellar_network = sn.StellarNetwork(validators)
+def get_validators():
+    """
+    Load data from validatos.json if possible, and otherwise from stellarbeat
+    """
+    try:
+        with open('validators.json', 'r') as f:
+            validators = json.load(f)
+    except FileNotFoundError:
+        validators = get_config_from_stellarbeat()
+        with open('validators.json', 'w') as f:
+            json.dump(validators, f)
+    return validators
+    
+stellar_network = sn.StellarNetwork(get_validators())
 print("There are {} validators".format(len(stellar_network.validators)))
 print("There are {} different qsets:".format(len(stellar_network.qsets)))
 # for qset in stellar_network.qsets:
