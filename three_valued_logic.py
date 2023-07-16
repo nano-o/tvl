@@ -164,6 +164,8 @@ def translate_for_validity(formula):
 
 def is_valid(formula):
     return ps.is_valid(translate_for_validity(formula))
+    # with ps.Solver(name="btor") as solver:
+        # return solver.is_valid(translate_for_validity(formula))
 
 def translate_for_satisfiability(formula):
     """

@@ -85,49 +85,47 @@ class StellarNetwork:
                 check_qset(qset)
             except ValueError as e:
                 raise ValueError("Error in validator {}: {}".format(pk, e))
-            
-    def num_qsets(self):
-        """
-        Return the number of different quorumSets in the network
-        """
-        return len(self.qsets)
 
     def closed_ax(self):
         """
         Return the closedAx formula as computed from the quorumSets of the validators.
         """
-        seen = set()
+
+        lhs_cache = dict()
         closed_ax_fmlas = []
     
-        def add_closed_ax_qset(qset):
+        def add_closed_ax(validator_or_qset, qset):
             """
-            Add the closed axioms for the given qset to the list closed_ax.
+            Add the closure axioms for the given qset to the list closed_ax.
 
             :param qset: a QSet
+            :param variable: a pysmt symbol
             """
-            if qset in seen:
-                return
-            elems = qset.validators | qset.innerQuorumSets
-            witnesses = list(itertools.combinations(elems, qset.threshold))
-            def witness_to_disj(witness):
-                return Or(*[symbol(e) for e in witness])
-            closed_ax_pos = tvl.Dimp(And(*[witness_to_disj(w) for w in witnesses]), symbol(qset))
-            def witness_to_disj_neg(witness):
-                return Or(*[tvl.Not(symbol(e)) for e in witness])
-            closed_ax_neg = tvl.Dimp(And(*[witness_to_disj_neg(w) for w in witnesses]), tvl.Not(symbol(qset)))
-            seen.add(qset)
-            closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
-            for innerQset in qset.innerQuorumSets:
-                add_closed_ax_qset(innerQset)
+            if isinstance(validator_or_qset, QSet) and qset in lhs_cache:
+                pass
+            elif isinstance(validator_or_qset, str) and qset in lhs_cache:
+                closed_ax_pos = tvl.Dimp(lhs_cache[qset][0], symbol(validator_or_qset))
+                closed_ax_neg = tvl.Dimp(lhs_cache[qset][1], tvl.Not(symbol(validator_or_qset)))
+                closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
+            else:
+                elems = qset.validators | qset.innerQuorumSets
+                witnesses = list(itertools.combinations(elems, qset.threshold))
+                def witness_to_disj_pos(witness):
+                    return Or(*[symbol(e) for e in witness])
+                lhs_pos = And(*[witness_to_disj_pos(w) for w in witnesses])
+                closed_ax_pos = tvl.Dimp(lhs_pos, symbol(validator_or_qset))
+                def witness_to_disj_neg(witness):
+                    return Or(*[tvl.Not(symbol(e)) for e in witness])
+                lhs_neg = And(*[witness_to_disj_neg(w) for w in witnesses])
+                closed_ax_neg = tvl.Dimp(lhs_neg, tvl.Not(symbol(validator_or_qset)))
+                lhs_cache[qset] = [lhs_pos, lhs_neg]
+                closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
+                for innerQset in qset.innerQuorumSets:
+                    add_closed_ax(innerQset, innerQset)
 
-        def add_closed_ax_validator(v):
-            assert isinstance(v, str)
-            qset = self.validators[v]
-            add_closed_ax_qset(qset)
-            closed_ax_fmlas.append(tvl.Equiv(symbol(qset), symbol(v)))
-        
-        for v in self.validators:
-            add_closed_ax_validator(v)
+        for v,qset in self.validators.items():
+            add_closed_ax(v, qset)
+
         return And(*closed_ax_fmlas)
 
     def network_intertwined(self):
