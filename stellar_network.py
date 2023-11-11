@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import json
 import itertools
+from typing import List
 
 @dataclass(frozen=True)
 class QSet:
@@ -104,31 +105,48 @@ class StellarNetwork:
     def __str__(self) -> str:
         return json.dumps(self.to_dict(), indent=4)
     
-def cartesian_product(sets):
+def one_of_each(list_of_sets:List[frozenset]) -> frozenset:
     """
-    Return the cartesian product of the given sets.
+    Returns all the sets obtained by picking one element of each set in the list
     """
-    if len(sets) == 0:
-        return frozenset([frozenset()])
+    if len(list_of_sets) == 0:
+        return frozenset()
+    elif len(list_of_sets) == 1:
+        return frozenset([frozenset([e]) for e in list_of_sets[0]])
     else:
-        return frozenset([frozenset([e]) | s for e in sets[0] for s in cartesian_product(sets[1:])])
-    
-def union(sets):
+        head = list_of_sets[0]
+        tail = list_of_sets[1:]
+        tail_prod = one_of_each(tail)
+        return frozenset([frozenset([e]) | s for e in head for s in tail_prod])
+
+# print(one_of_each([frozenset([1,2])]))
+# print(one_of_each([frozenset([1,2]), frozenset([3,4]), frozenset([1,2])]))
+
+def union(sets) -> frozenset:
     """
     Return the union of the given sets.
     """
     return frozenset(itertools.chain(*sets))
-    
-def blocking(qset):
+
+def blocking(qset:QSet):
     """
-    Return the set of validators that are blocking for the given qset.
+    Return the set of validators that are minimally blocking for the given qset.
     """
     elems = qset.validators | qset.innerQuorumSets
     # enumerate all subsets of elems of size len(elems)-threshold+1:
-    sets = itertools.combinations(elems, len(elems)-qset.threshold+1)
-    # for each set, group the validators in a set and apply blocking to each qset:
-    sets2 = frozenset([frozenset([e for e in s if isinstance(e, str)]) | frozenset([blocking(e) for e in s if isinstance(e, QSet)]) for s in sets])
-    # for each set in sets2, take the product of its members:
-    return frozenset([frozenset(itertools.chain(*s)) for s in sets2])
+    combinations = itertools.combinations(elems, len(elems)-qset.threshold+1)
 
-    # TODO
+    def expand_combination(c):
+        list_of_sets_of_sets = [frozenset(frozenset([e])) if isinstance(e, str) else blocking(e) for e in c]
+        return frozenset([union(s) for s in one_of_each(list_of_sets_of_sets)])
+
+    return frozenset([expand_combination(c) for c in combinations])
+
+def pretty_print_frozenset(fset):
+    """
+    Pretty print a frozenset
+    """
+    return "{" + ", ".join([pretty_print_frozenset(e) if isinstance(e, frozenset) else str(e) for e in fset]) + "}"
+
+# print(blocking(QSet(3, frozenset(['1', '2', '3', '4']), frozenset())))
+print(pretty_print_frozenset(blocking(QSet(3, frozenset(['1', '2', '3']), frozenset([QSet(2, frozenset(['A', 'B', 'C']), frozenset())])))))

@@ -2,17 +2,7 @@ import stellar_network as sn
 import tvl_checks as tvlc
 import unittest
 
-class QSetTest(unittest.TestCase):
-    def test_1(self):
-        qset = sn.QSet.from_json(
-            {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []})
-    def test_2(self):
-        qset = sn.QSet.from_json(
-            {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' :
-                [{'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []},
-                 {'threshold' : 1, 'validators' : ['C','D'], 'innerQuorumSets' : []}]})
-
-class TestStellarNetwork(unittest.TestCase):
+class TestTVLChecks(unittest.TestCase):
     def test_1(self):
         network = sn.StellarNetwork(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}}])
