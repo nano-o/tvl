@@ -1,11 +1,6 @@
-import itertools
-import pysmt.shortcuts as ps
-import three_valued_logic as tvl
 from dataclasses import dataclass
-
-"""
-This file contains functions for checking whether a given network of validators (consisting of public keys and their quorumSets) is intertwined by reduction to SAT.
-"""
+import json
+import itertools
 
 @dataclass(frozen=True)
 class QSet:
@@ -30,7 +25,7 @@ class StellarNetwork:
     A Stellar network is a list of validators, each of which is represented by their public key and has a quorumSet.
 
     :ivar validators: a dictionary mapping public keys to quorumSets
-    :ivar qset: the set of all quorumSets in the network
+    :ivar qsets: the set of all quorumSets in the network
     """
 
     def __init__(self, validators):
@@ -84,85 +79,56 @@ class StellarNetwork:
                 check_qset(qset)
             except ValueError as e:
                 raise ValueError("Error in validator {}: {}".format(pk, e))
-
-    def closed_ax(self):
+            
+    def simplify_keys(self):
         """
-        Return the closedAx formula as computed from the quorumSets of the validators.
-        TODO: Check this is still accurate according to three.pdf
+        Map the keys to numbers between 1 and n, represented as strings, where n is the number of validators.
         """
-
-        lhs_cache = dict()
-        closed_ax_fmlas = []
+        def map_qset(qset):
+            return QSet(qset.threshold,
+                        frozenset([key_map[validator] for validator in qset.validators]),
+                        frozenset([map_qset(innerQset) for innerQset in qset.innerQuorumSets]))
+        keys = list(self.validators.keys())
+        key_map = dict([(keys[i], str(i+1)) for i in range(len(keys))])
+        self.validators = dict([(key_map[key], map_qset(qset)) for key,qset in self.validators.items()])
+        self.sanity_check()
+        self.qsets = set(self.validators.values())
     
-        def add_closed_ax(validator_or_qset, qset):
-            """
-            Add the closure axioms for the given qset to the list closed_ax.
+    def to_dict(self):
+        def qset_to_dict(qset):
+            return {'threshold' : qset.threshold,
+                    'validators' : list(qset.validators),
+                    'innerQuorumSets' : [qset_to_dict(innerQset) for innerQset in qset.innerQuorumSets]}
+        return [{'publicKey': pk, 'quorumSet': qset_to_dict(qset)} for pk,qset in self.validators.items()]
 
-            :param qset: a QSet
-            :param variable: a pysmt symbol
-            """
-            if isinstance(validator_or_qset, QSet) and qset in lhs_cache:
-                pass
-            elif isinstance(validator_or_qset, str) and qset in lhs_cache:
-                assert len(lhs_cache[qset]) == 2
-                closed_ax_pos = tvl.Dimp(lhs_cache[qset][0], symbol(validator_or_qset))
-                closed_ax_neg = tvl.Dimp(lhs_cache[qset][1], tvl.Not(symbol(validator_or_qset)))
-                closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
-            else:
-                elems = qset.validators | qset.innerQuorumSets
-                witnesses = list(itertools.combinations(elems, qset.threshold))
-                def witness_to_disj_pos(witness):
-                    return Or(*[symbol(e) for e in witness])
-                lhs_pos = And(*[witness_to_disj_pos(w) for w in witnesses])
-                closed_ax_pos = tvl.Dimp(lhs_pos, symbol(validator_or_qset))
-                def witness_to_disj_neg(witness):
-                    return Or(*[tvl.Not(symbol(e)) for e in witness])
-                lhs_neg = And(*[witness_to_disj_neg(w) for w in witnesses])
-                closed_ax_neg = tvl.Dimp(lhs_neg, tvl.Not(symbol(validator_or_qset)))
-                lhs_cache[qset] = [lhs_pos, lhs_neg]
-                closed_ax_fmlas.extend([closed_ax_pos,closed_ax_neg])
-                for innerQset in qset.innerQuorumSets:
-                    add_closed_ax(innerQset, innerQset)
-
-        for v,qset in self.validators.items():
-            add_closed_ax(v, qset)
-
-        return And(*closed_ax_fmlas)
-
-    def network_intertwined(self):
-        if len(self.validators) == 1:
-            return tvl.Not(tvl.F)
-        else:
-            return tvl.Dimp(self.closed_ax(), And(*[intertwined(p, q) for [p,q] in itertools.combinations(self.validators.keys(), 2)]))
-        
-    def check_intertwined(self, p, q):
-        return tvl.is_valid(tvl.Dimp(self.closed_ax(), intertwined(p,q)))
-        
-    def check_network_intertwined(self):
-        return tvl.is_valid(self.network_intertwined())
-
-def symbol(x):
-    """
-    Associate a symbol with a validator or a QSet.
-    Hopefully, pySMT already does memoization, so we don't need to do it ourselves.
-    """
-    assert isinstance(x, str) or isinstance(x, QSet)
-    return ps.Symbol(str(hash(x)))
-
-def And(*args):
-    assert len(args) > 0
-    value = args[0]
-    for f in args[1:]:
-        value = tvl.And(f, value)
-    return value
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=4)
     
-def Or(*args):
-    assert len(args) > 0
-    value = args[0]
-    for f in args[1:]:
-        value = tvl.Or(f, value)
-    return value
+def cartesian_product(sets):
+    """
+    Return the cartesian product of the given sets.
+    """
+    if len(sets) == 0:
+        return frozenset([frozenset()])
+    else:
+        return frozenset([frozenset([e]) | s for e in sets[0] for s in cartesian_product(sets[1:])])
+    
+def union(sets):
+    """
+    Return the union of the given sets.
+    """
+    return frozenset(itertools.chain(*sets))
+    
+def blocking(qset):
+    """
+    Return the set of validators that are blocking for the given qset.
+    """
+    elems = qset.validators | qset.innerQuorumSets
+    # enumerate all subsets of elems of size len(elems)-threshold+1:
+    sets = itertools.combinations(elems, len(elems)-qset.threshold+1)
+    # for each set, group the validators in a set and apply blocking to each qset:
+    sets2 = frozenset([frozenset([e for e in s if isinstance(e, str)]) | frozenset([blocking(e) for e in s if isinstance(e, QSet)]) for s in sets])
+    # for each set in sets2, take the product of its members:
+    return frozenset([frozenset(itertools.chain(*s)) for s in sets2])
 
-def intertwined(p, q):
-    assert isinstance(p, str) and isinstance(q, str)
-    return tvl.Or(tvl.And(symbol(p), symbol(q)),tvl.And(tvl.Not(symbol(p)),tvl.Not(symbol(q))))
+    # TODO
