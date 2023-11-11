@@ -1,7 +1,6 @@
 import itertools
 import pysmt.shortcuts as ps
 import three_valued_logic as tvl
-import json
 from dataclasses import dataclass
 
 """
@@ -89,6 +88,7 @@ class StellarNetwork:
     def closed_ax(self):
         """
         Return the closedAx formula as computed from the quorumSets of the validators.
+        TODO: Check this is still accurate according to three.pdf
         """
 
         lhs_cache = dict()
