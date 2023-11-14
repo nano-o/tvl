@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import json
 import itertools
-from typing import List
+from typing import List, Iterable
 
 @dataclass(frozen=True)
 class QSet:
@@ -20,13 +20,19 @@ class QSet:
         return QSet(json_qset['threshold'],
                     frozenset(json_qset['validators']),
                     frozenset([QSet.from_json(qset) for qset in json_qset['innerQuorumSets']]))
+    
+    def members(self) -> frozenset[str]:
+        """
+        Return the set of members of the quorumSet.
+        """
+        return self.validators | union([innerQset.members() for innerQset in self.innerQuorumSets])
 
 class StellarNetwork:
     """
     A Stellar network is a list of validators, each of which is represented by their public key and has a quorumSet.
 
     :ivar validators: a dictionary mapping public keys to quorumSets
-    :ivar qsets: the set of all quorumSets in the network
+    :ivar qsets: the set of all validator quorumSets in the network
     """
 
     def __init__(self, validators):
@@ -84,6 +90,7 @@ class StellarNetwork:
     def simplify_keys(self):
         """
         Map the keys to numbers between 1 and n, represented as strings, where n is the number of validators.
+        Updates the object in place.
         """
         def map_qset(qset):
             return QSet(qset.threshold,
@@ -92,8 +99,8 @@ class StellarNetwork:
         keys = list(self.validators.keys())
         key_map = dict([(keys[i], str(i+1)) for i in range(len(keys))])
         self.validators = dict([(key_map[key], map_qset(qset)) for key,qset in self.validators.items()])
-        self.sanity_check()
         self.qsets = set(self.validators.values())
+        self.sanity_check()
     
     def to_dict(self):
         def qset_to_dict(qset):
@@ -105,30 +112,31 @@ class StellarNetwork:
     def __str__(self) -> str:
         return json.dumps(self.to_dict(), indent=4)
     
-def one_of_each(list_of_sets:List[frozenset]) -> frozenset:
+def one_of_each(list_of_sets:List[frozenset[frozenset[str]]]) -> frozenset[frozenset[str]]:
     """
-    Returns all the sets obtained by picking one element of each set in the list
+    Returns all the sets that can be formed by picking one set in each set in the list and taking their union.
     """
     if len(list_of_sets) == 0:
-        return frozenset()
+        return frozenset() # TODO or frozenset(frozenset()) ?
     elif len(list_of_sets) == 1:
-        return frozenset([frozenset([e]) for e in list_of_sets[0]])
+        return frozenset(list_of_sets[0])
     else:
         head = list_of_sets[0]
         tail = list_of_sets[1:]
-        tail_prod = one_of_each(tail)
-        return frozenset([frozenset([e]) | s for e in head for s in tail_prod])
+        tail_prod = one_of_each(tail) # set of sets
+        return frozenset([e | s for e in head for s in tail_prod])
 
-# print(one_of_each([frozenset([1,2])]))
-# print(one_of_each([frozenset([1,2]), frozenset([3,4]), frozenset([1,2])]))
-
-def union(sets) -> frozenset:
+def union(sets:Iterable[frozenset]) -> frozenset:
     """
     Return the union of the given sets.
     """
     return frozenset(itertools.chain(*sets))
 
-def blocking(qset:QSet):
+def expand_combination(c) -> frozenset[frozenset[str]]:
+    list_of_sets_of_sets = [frozenset([frozenset([e])]) if isinstance(e, str) else blocking(e) for e in c]
+    return one_of_each(list_of_sets_of_sets)
+    
+def blocking(qset:QSet) -> frozenset[frozenset[str]]:
     """
     Return the set of validators that are minimally blocking for the given qset.
     """
@@ -136,17 +144,13 @@ def blocking(qset:QSet):
     # enumerate all subsets of elems of size len(elems)-threshold+1:
     combinations = itertools.combinations(elems, len(elems)-qset.threshold+1)
 
-    def expand_combination(c):
-        list_of_sets_of_sets = [frozenset(frozenset([e])) if isinstance(e, str) else blocking(e) for e in c]
-        return frozenset([union(s) for s in one_of_each(list_of_sets_of_sets)])
-
-    return frozenset([expand_combination(c) for c in combinations])
+    res = union(frozenset([expand_combination(c) for c in combinations]))
+    for b in res:
+        assert b.issubset(qset.members()), f"{pretty_print_frozenset(b)} not a subset of qset.members() = {pretty_print_frozenset(qset.members())}"
+    return res
 
 def pretty_print_frozenset(fset):
     """
     Pretty print a frozenset
     """
     return "{" + ", ".join([pretty_print_frozenset(e) if isinstance(e, frozenset) else str(e) for e in fset]) + "}"
-
-# print(blocking(QSet(3, frozenset(['1', '2', '3', '4']), frozenset())))
-print(pretty_print_frozenset(blocking(QSet(3, frozenset(['1', '2', '3']), frozenset([QSet(2, frozenset(['A', 'B', 'C']), frozenset())])))))
