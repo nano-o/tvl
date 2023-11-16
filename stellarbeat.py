@@ -37,4 +37,7 @@ def get_validators(update=False):
     return validators
 
 def get_stellar_network(update=False):
-    return sn.StellarNetwork(get_validators(update=update))
+    return sn.StellarNetwork.from_json(get_validators(update=update))
+
+# if __name__ == '__main__':
+    # print(sn.pretty_print_frozenset(get_stellar_network().top_tier))

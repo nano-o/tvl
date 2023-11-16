@@ -17,7 +17,7 @@ else:
     stellar_network = sb.get_stellar_network()
 
 print("There are {} validators".format(len(stellar_network.validators)))
-print("There are {} different qsets".format(len(stellar_network.qsets)))
+print("There are {} different qsets".format(len(stellar_network.qsets())))
 
 stellar_network.simplify_keys()
 print(stellar_network)

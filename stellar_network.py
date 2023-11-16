@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 import itertools
 from typing import List, Iterable
+import math
 
 @dataclass(frozen=True)
 class QSet:
@@ -32,10 +33,33 @@ class StellarNetwork:
     A Stellar network is a list of validators, each of which is represented by their public key and has a quorumSet.
 
     :ivar validators: a dictionary mapping public keys to quorumSets
-    :ivar qsets: the set of all validator quorumSets in the network
     """
 
-    def __init__(self, validators):
+    def top_tier(self):
+        return self.most_frequent_qset().members() 
+
+    def __init__(self, validators: dict[str, QSet]):
+        """
+        :param validators: a dictionary mapping public keys to quorumSets
+        """
+        self.validators = validators
+        self.sanity_check()
+
+
+    @staticmethod
+    def symmetric_network(norgs):
+        """
+        Return a symmetric network with norgs organizations and org threshold 2/3, with each org running 3 validators with a threshold of 2.
+        """
+        orgs = [f"org{i}" for i in range(norgs)]
+        validators = [f"{org}v{i}" for org in orgs for i in range(3)]
+        threshold = math.floor(2*norgs//3)+1
+        innerQsets = [{'threshold' : 2, 'validators' : [validators[3*i+j] for j in range(3)], 'innerQuorumSets' : []} for i in range(norgs)]
+        qset = QSet.from_json({'threshold' : threshold, 'validators' : [], 'innerQuorumSets' : innerQsets})
+        return StellarNetwork({v:qset for v in validators})
+
+    @staticmethod
+    def from_json(validators):
         """
          :param validators: list of dictionaries, each of which describes a validator; and has the following form:
 
@@ -55,10 +79,25 @@ class StellarNetwork:
         if len(validators) != len(set([validator['publicKey'] for validator in validators])):
             raise ValueError("Duplicate validator")
         # create a dictionary mapping public keys to QSets:
-        self.validators = dict(
+        validators = dict(
             [(validator['publicKey'], QSet.from_json(validator['quorumSet'])) for validator in validators])
-        self.sanity_check()
-        self.qsets = set(self.validators.values())
+        return StellarNetwork(validators)
+        
+    def qsets(self):
+        return self.validators.values()
+
+    def most_frequent_qset(self) -> QSet:
+        """
+        Return the most frequent qset in the network.
+        """
+        return max(self.qsets(), key=lambda qset: len([q for q in self.validators.values() if q == qset]))
+    
+    def top_tier_only(self):
+        """
+        Return a new StellarNetwork object that only contains the top tier validators.
+        """
+        top_tier_validators = {pk:qset for pk,qset in self.validators.items() if pk in self.top_tier()}
+        return StellarNetwork(top_tier_validators)
 
     def sanity_check(self):
         """
@@ -99,7 +138,6 @@ class StellarNetwork:
         keys = list(self.validators.keys())
         key_map = dict([(keys[i], str(i+1)) for i in range(len(keys))])
         self.validators = dict([(key_map[key], map_qset(qset)) for key,qset in self.validators.items()])
-        self.qsets = set(self.validators.values())
         self.sanity_check()
     
     def to_dict(self):

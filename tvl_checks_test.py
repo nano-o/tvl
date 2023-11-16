@@ -4,12 +4,12 @@ import unittest
 
 class TestTVLChecks(unittest.TestCase):
     def test_1(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}}])
         self.assertTrue(tvlc.check_network_intertwined(network))
 
     def test_2(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}}])
         formula = tvlc.is_intertwined(network)
@@ -19,26 +19,26 @@ class TestTVLChecks(unittest.TestCase):
         self.assertTrue(tvlc.check_network_intertwined(network))
 
     def test_3(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}}])
         self.assertTrue(tvlc.check_network_intertwined(network))
 
     def test_4(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}}])
         self.assertFalse(tvlc.check_network_intertwined(network))
 
     def test_5(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['C'], 'innerQuorumSets' : []}},
              {'publicKey' : 'C', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}}])
         self.assertTrue(tvlc.check_network_intertwined(network))
 
     def test_6(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}},
              {'publicKey' : 'C', 'quorumSet' : {'threshold' : 1, 'validators' : ['B','D'], 'innerQuorumSets' : []}},
@@ -48,7 +48,7 @@ class TestTVLChecks(unittest.TestCase):
         self.assertFalse(tvlc.check_intertwined(network,'A','C'))
 
     def test_7(self):
-        network = sn.StellarNetwork(
+        network = sn.StellarNetwork.from_json(
             [{'publicKey' : 'A', 'quorumSet' : {'threshold' : 1, 'validators' : ['B'], 'innerQuorumSets' : []}},
              {'publicKey' : 'B', 'quorumSet' : {'threshold' : 1, 'validators' : ['A'], 'innerQuorumSets' : []}},
              {'publicKey' : 'C', 'quorumSet' : {'threshold' : 1, 'validators' : ['D'], 'innerQuorumSets' : []}},
