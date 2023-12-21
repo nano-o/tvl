@@ -18,7 +18,7 @@ class OverlayTest(unittest.TestCase):
         o.optimal(network)
 
     def test_3(self):
-        network = sn.StellarNetwork.symmetric_network(4)
+        network = sn.StellarNetwork.symmetric_network(3)
         # network.simplify_keys()
         o.optimal(network)
 

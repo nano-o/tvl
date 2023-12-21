@@ -33,6 +33,7 @@ def optimal(network):
     o = z3.Optimize()
     o.add(diameter_max_2())
     o.add(slices_covered())
+    # minimize the number of edges:
     for ne in [Not(edge_vars[p]) for p in validator_pairs]:
         o.add_soft(ne)
     print('solving')
